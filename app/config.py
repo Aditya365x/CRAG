@@ -4,9 +4,9 @@ from pydantic_settings import BaseSettings
 dirname = r'D:\Project_for_placements\agenticRag\corrective-rag\documents'
 
 class Settings(BaseSettings):
-    kimi_api_key: str = "sk-pCbOeAAWhDAGcaUOUrrOrDHrZoTDpR8fe8H333o514wjo6DT"
-    huggingface_api_key: str = "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"
-    tavily_api_key: str = "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"
+    kimi_api_key: str = ""
+    huggingface_api_key: str = ""
+    tavily_api_key: str = "A"
 
     llm_model: str = "kimi-k2.6"
     llm_base_url: str = "https://api.moonshot.ai/v1"
