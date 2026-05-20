@@ -1,7 +1,7 @@
 import os
 from pydantic_settings import BaseSettings
 
-dirname = r'D:\Project_for_placements\agenticRag\corrective-rag\documents'
+dirname = r''
 
 class Settings(BaseSettings):
     kimi_api_key: str = ""
