@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CRAG — Corrective RAG</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <div class="app">
+    <header class="header">
+      <h1>CRAG</h1>
+      <p class="subtitle">Corrective Retrieval-Augmented Generation</p>
+    </header>
+
+    <main class="main">
+      <!-- Chat area -->
+      <div class="chat" id="chat">
+        <div class="message bot welcome">
+          <div class="bubble">
+            Ask me anything about the books in the document store.
+          </div>
+        </div>
+      </div>
+
+      <!-- Metadata panel -->
+      <aside class="metadata" id="metadata">
+        <div class="meta-header">
+          <h3>Pipeline Info</h3>
+          <button class="meta-close" id="metaClose">&times;</button>
+        </div>
+        <div class="meta-body" id="metaBody">
+          <div class="meta-row">
+            <span class="meta-label">Verdict</span>
+            <span class="meta-value" id="metaVerdict">—</span>
+          </div>
+          <div class="meta-row">
+            <span class="meta-label">Reason</span>
+            <span class="meta-value meta-reason" id="metaReason">—</span>
+          </div>
+          <div class="meta-row">
+            <span class="meta-label">Good docs</span>
+            <span class="meta-value" id="metaGoodDocs">—</span>
+          </div>
+          <div class="meta-row">
+            <span class="meta-label">Web docs</span>
+            <span class="meta-value" id="metaWebDocs">—</span>
+          </div>
+          <div class="meta-section">
+            <span class="meta-label">Refined context</span>
+            <pre class="meta-context" id="metaContext">—</pre>
+          </div>
+        </div>
+      </aside>
+    </main>
+
+    <!-- Input -->
+    <footer class="input-bar">
+      <input
+        type="text"
+        id="questionInput"
+        placeholder="Ask a question…"
+        autofocus
+      />
+      <button id="sendBtn">Ask</button>
+    </footer>
+  </div>
+
+  <script src="/static/script.js"></script>
+</body>
+</html>
