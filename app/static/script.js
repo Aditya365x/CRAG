@@ -263,7 +263,7 @@
     $("uploadBtn").disabled = true;
     $("uploadProgress").hidden = false;
     $("uploadBar").style.width = "0%";
-    $("uploadMsg").textContent = "Uploading…";
+    $("uploadMsg").textContent = "Uploading and indexing…";
     try {
       const body = new FormData();
       body.append("file", f);

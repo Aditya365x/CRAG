@@ -5,7 +5,7 @@ from collections import Counter
 
 from langchain_core.callbacks import BaseCallbackHandler
 
-from . import config
+from . import config, storage
 from .graph import crag_app
 from .ingest import read_meta, write_meta
 
@@ -25,6 +25,9 @@ def ask(doc_id: str, question: str) -> dict:
     if not config.LLM_API_KEY:
         raise ValueError("LLM_API_KEY is not set. Add it to .env or your host's environment variables.")
     meta = read_meta(doc_id)
+    if not meta:
+        raise ValueError("This document is no longer available (uploads are cleared when the server "
+                         "restarts). Please upload it again.")
     if meta.get("status") != "ready":
         raise ValueError(f"Document {doc_id} is not ready (status: {meta.get('status', 'unknown')}).")
     question = question.strip()
@@ -79,6 +82,7 @@ def record_verdict(doc_id: str, verdict: str) -> None:
     with _history_lock:
         history = read_meta(doc_id).get("verdicts", [])
         write_meta(doc_id, verdicts=history + [verdict])
+    storage.push(doc_id, "meta.json")
 
 
 def book_report(doc_id: str) -> dict:
