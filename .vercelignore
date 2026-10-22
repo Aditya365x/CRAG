@@ -7,3 +7,5 @@ venv
 data
 models
 .venv
+.env.local
+.vercel
