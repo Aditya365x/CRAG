@@ -10,7 +10,7 @@ import numpy as np
 from pypdf import PdfReader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
-from . import config
+from . import config, storage
 
 _embedder = None
 _lock = threading.Lock()
@@ -39,7 +39,9 @@ def doc_dir(doc_id: str):
 
 def read_meta(doc_id: str) -> dict:
     p = doc_dir(doc_id) / "meta.json"
-    return json.loads(p.read_text()) if p.exists() else {}
+    if not p.exists() and not storage.pull(doc_id, "meta.json"):
+        return {}
+    return json.loads(p.read_text())
 
 
 def write_meta(doc_id: str, **fields) -> dict:
@@ -52,11 +54,12 @@ def write_meta(doc_id: str, **fields) -> dict:
 
 
 def list_docs() -> list[dict]:
+    local = [d.name for d in config.DATA_DIR.iterdir()] if config.DATA_DIR.exists() else []
     docs = []
-    for d in sorted(config.DATA_DIR.iterdir()) if config.DATA_DIR.exists() else []:
-        meta = read_meta(d.name)
+    for doc_id in sorted(set(local) | set(storage.remote_doc_ids())):
+        meta = read_meta(doc_id)
         if meta:
-            docs.append({"doc_id": d.name, **meta})
+            docs.append({"doc_id": doc_id, **meta})
     return docs
 
 
@@ -121,7 +124,9 @@ def build_index(doc_id: str, pdf_path: str, name: str,
         d = doc_dir(doc_id)
         faiss.write_index(index, str(d / "index.faiss"))
         (d / "chunks.json").write_text(json.dumps(chunks))
-        return write_meta(doc_id, status="ready", progress=1.0, pages=n_pages,
+        meta = write_meta(doc_id, status="ready", progress=1.0, pages=n_pages,
                           chunks=len(chunks), index_seconds=round(time.time() - t0, 1))
+        storage.push(doc_id, "index.faiss", "chunks.json", "meta.json")
+        return meta
     except Exception as e:  # noqa: BLE001  (surface any failure to the UI)
         return write_meta(doc_id, status="error", error=str(e))

@@ -8,7 +8,7 @@ import numpy as np
 from langchain_core.documents import Document
 from rank_bm25 import BM25Okapi
 
-from . import config
+from . import config, storage
 from .ingest import doc_dir, embed
 
 _STOP = set("a an the of to in on for and or is are was were be by with as at from this that it its how what why "
@@ -22,6 +22,7 @@ def tokenize(text: str) -> list[str]:
 class DocIndex:
     def __init__(self, doc_id: str):
         d = doc_dir(doc_id)
+        storage.pull(doc_id, "chunks.json", "index.faiss")
         self.doc_id = doc_id
         self.chunks = json.loads((d / "chunks.json").read_text())
         self.index = faiss.read_index(str(d / "index.faiss"))

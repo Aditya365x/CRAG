@@ -7,10 +7,11 @@ from pathlib import Path
 from fastapi import BackgroundTasks, FastAPI, HTTPException, Request, UploadFile
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
+from fastapi.concurrency import run_in_threadpool
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 
-from . import config
+from . import config, storage
 from .ingest import build_index, doc_dir, list_docs, read_meta, write_meta
 from .service import ask, book_report
 
@@ -87,6 +88,10 @@ async def upload(file: UploadFile, bg: BackgroundTasks):
         shutil.rmtree(d)
         raise HTTPException(413, f"File is larger than {config.MAX_UPLOAD_MB} MB.")
     write_meta(doc_id, name=file.filename, status="queued", progress=0.0)
+    if storage.ENABLED:
+        # Stateless hosts: finish indexing inside this request, then the index lives in shared storage.
+        meta = await run_in_threadpool(build_index, doc_id, str(d / "source.pdf"), file.filename)
+        return {"doc_id": doc_id, "status": meta["status"]}
     bg.add_task(build_index, doc_id, str(d / "source.pdf"), file.filename)
     return {"doc_id": doc_id, "status": "queued"}
 
