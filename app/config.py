@@ -1,15 +1,18 @@
 import os
 from pydantic_settings import BaseSettings
 
-dirname = r'D:\Project_for_placements\agenticRag\corrective-rag\documents'
+_APP_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
 
 class Settings(BaseSettings):
-    kimi_api_key: str = "sk-pCbOeAAWhDAGcaUOUrrOrDHrZoTDpR8fe8H333o514wjo6DT"
-    huggingface_api_key: str = "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"
-    tavily_api_key: str = "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"
+    # Secrets come from environment variables / .env only — never hardcode them.
+    openrouter_api_key: str = ""
+    huggingface_api_key: str = ""
+    tavily_api_key: str = ""
 
-    llm_model: str = "kimi-k2.6"
-    llm_base_url: str = "https://api.moonshot.ai/v1"
+    llm_model: str = "meta-llama/llama-3.2-1b-instruct"
+    llm_base_url: str = "https://openrouter.ai/api/v1"
+    llm_temperature: float = 0.0
     embed_model: str = "all-MiniLM-L6-v2"
 
     chunk_size: int = 900
@@ -17,18 +20,18 @@ class Settings(BaseSettings):
     k_retrieval: int = 4
     upper_th: float = 0.7
     lower_th: float = 0.3
-    documents_dir: str = os.path.abspath(
-        os.path.join(
-            os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-            "..",
-            "documents",
-        )
+
+    # Bundled documents live in crag-app/documents; fall back to the
+    # notebook repo's ../documents for local development.
+    documents_dir: str = (
+        os.path.join(_APP_ROOT, "documents")
+        if os.path.isdir(os.path.join(_APP_ROOT, "documents"))
+        else os.path.abspath(os.path.join(_APP_ROOT, "..", "documents"))
     )
+    index_dir: str = os.path.join(_APP_ROOT, "faiss_index")
 
     class Config:
-        env_file = os.path.join(
-            os.path.dirname(os.path.dirname(os.path.abspath(__file__))), ".env"
-        )
+        env_file = os.path.join(_APP_ROOT, ".env")
         env_file_encoding = "utf-8"
         extra = "allow"
 

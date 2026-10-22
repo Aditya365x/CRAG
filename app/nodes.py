@@ -1,6 +1,9 @@
+import json
+import re
 from typing import List, Literal
 from langchain_core.documents import Document
 from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.runnables import RunnableLambda
 from pydantic import BaseModel
 
 from app.config import settings
@@ -24,7 +27,7 @@ class GraphState(BaseModel):
     answer: str = ""
 
 # ---------------------------------------------------------------------------
-# Pydantic schemas for structured LLM output
+# Pydantic schemas for LLM output
 # ---------------------------------------------------------------------------
 class DocEvalScore(BaseModel):
     score: float
@@ -33,6 +36,48 @@ class DocEvalScore(BaseModel):
 
 class KeepOrDrop(BaseModel):
     keep: bool
+
+
+# ---------------------------------------------------------------------------
+# JSON parsing helpers
+#
+# The OpenRouter provider for llama-3.2-1b-instruct supports neither tool
+# calling nor JSON-schema mode, so `with_structured_output` cannot be used.
+# We ask for JSON in the prompt and parse the reply leniently instead.
+# ---------------------------------------------------------------------------
+def _extract_json(text: str) -> dict:
+    match = re.search(r"\{.*?\}", text, re.DOTALL)
+    if match:
+        try:
+            return json.loads(match.group(0))
+        except json.JSONDecodeError:
+            pass
+    return {}
+
+
+def _parse_eval(msg) -> DocEvalScore:
+    text = msg.content if hasattr(msg, "content") else str(msg)
+    data = _extract_json(text)
+    score = data.get("score")
+    if score is None:
+        num = re.search(r"\b(?:0(?:\.\d+)?|1(?:\.0+)?)\b", text)
+        score = num.group(0) if num else 0.0
+    try:
+        score = min(max(float(score), 0.0), 1.0)
+    except (TypeError, ValueError):
+        score = 0.0
+    return DocEvalScore(score=score, reason=str(data.get("reason", text[:200])))
+
+
+def _parse_keep(msg) -> KeepOrDrop:
+    text = msg.content if hasattr(msg, "content") else str(msg)
+    data = _extract_json(text)
+    keep = data.get("keep")
+    if isinstance(keep, str):
+        keep = keep.strip().lower() == "true"
+    if keep is None:
+        keep = bool(re.search(r"\btrue\b|\byes\b", text, re.IGNORECASE))
+    return KeepOrDrop(keep=bool(keep))
 
 
 # ---------------------------------------------------------------------------
@@ -49,11 +94,11 @@ def _eval_chain():
             "- 0.0: chunk is irrelevant\n"
             "Be conservative with high scores.\n"
             "Also return a short reason.\n"
-            "Output JSON only.",
+            'Respond with ONLY a JSON object: {{"score": <float>, "reason": "<short reason>"}}',
         ),
         ("human", "Question: {question}\n\nChunk:\n{chunk}"),
     ])
-    return prompt | llm.with_structured_output(DocEvalScore)
+    return prompt | llm | RunnableLambda(_parse_eval)
 
 
 def _filter_chain():
@@ -63,11 +108,12 @@ def _filter_chain():
             "system",
             "You are a strict relevance filter.\n"
             "Return keep=true only if the sentence directly helps answer the question.\n"
-            "Use ONLY the sentence. Output JSON only.",
+            "Use ONLY the sentence.\n"
+            'Respond with ONLY a JSON object: {{"keep": true}} or {{"keep": false}}',
         ),
         ("human", "Question: {question}\n\nSentence:\n{sentence}"),
     ])
-    return prompt | llm.with_structured_output(KeepOrDrop)
+    return prompt | llm | RunnableLambda(_parse_keep)
 
 
 # ---------------------------------------------------------------------------
@@ -99,10 +145,14 @@ def eval_each_doc_node(state: GraphState) -> dict:
     scores: List[float] = []
     good: List[Document] = []
 
-    for d in docs:
-        out = chain.invoke({"question": q, "chunk": d.page_content})
-        scores.append(out.score)
-        if out.score > settings.lower_th:
+    outs = chain.batch(
+        [{"question": q, "chunk": d.page_content} for d in docs],
+        return_exceptions=True,
+    )
+    for d, out in zip(docs, outs):
+        score = 0.0 if isinstance(out, Exception) else out.score
+        scores.append(score)
+        if score > settings.lower_th:
             good.append(d)
 
     if any(s > settings.upper_th for s in scores):
@@ -181,13 +231,15 @@ def refine_node(state: GraphState) -> dict:
 
     # 2) filter with LLM
     chain = _filter_chain()
-    kept: List[str] = []
-    for s in strips:
-        try:
-            if chain.invoke({"question": q, "sentence": s}).keep:
-                kept.append(s)
-        except Exception:
-            kept.append(s)  # keep on error — be permissive
+    outs = chain.batch(
+        [{"question": q, "sentence": s} for s in strips],
+        return_exceptions=True,
+    )
+    # keep on error — be permissive
+    kept: List[str] = [
+        s for s, out in zip(strips, outs)
+        if isinstance(out, Exception) or out.keep
+    ]
 
     # 3) recompose
     refined_context = "\n".join(kept).strip()

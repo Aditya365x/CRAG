@@ -58,12 +58,24 @@ def get_vector_store():
     if _vector_store is not None:
         return _vector_store
 
+    embeddings = get_embeddings()
+
+    # Prefer a prebuilt index (created at Docker build time) to avoid
+    # re-embedding every PDF on each cold start.
+    if os.path.exists(os.path.join(settings.index_dir, "index.faiss")):
+        print(f"Loading FAISS index from {settings.index_dir}")
+        _vector_store = FAISS.load_local(
+            settings.index_dir, embeddings, allow_dangerous_deserialization=True
+        )
+        return _vector_store
+
     chunks = load_and_chunk_documents()
     if not chunks:
         return None
 
-    embeddings = get_embeddings()
     _vector_store = FAISS.from_documents(chunks, embeddings)
+    _vector_store.save_local(settings.index_dir)
+    print(f"Saved FAISS index to {settings.index_dir}")
     return _vector_store
 
 

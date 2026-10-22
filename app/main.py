@@ -1,12 +1,12 @@
 import os
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from app.schemas import AskRequest, AskResponse
 from app.pipeline import build_graph
-from app.document_store import load_and_chunk_documents
+from app.document_store import get_vector_store
 app = FastAPI(title="CRAG — Corrective RAG")
 
 # Serve static assets & templates
@@ -21,8 +21,13 @@ _graph = None
 @app.on_event("startup")
 def startup():
     global _graph
-    load_and_chunk_documents()
+    get_vector_store()
     _graph = build_graph()
+
+
+@app.get("/health")
+def health():
+    return {"status": "ok"}
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -33,7 +38,10 @@ def index(request: Request):
 @app.post("/ask", response_model=AskResponse)
 def ask(req: AskRequest):
     global _graph
-    result = _graph.invoke({"question": req.question})
+    try:
+        result = _graph.invoke({"question": req.question})
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"Pipeline failed: {e}")
 
     return AskResponse(
         question=req.question,
@@ -49,4 +57,4 @@ def ask(req: AskRequest):
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run("app.main:app", host="0.0.0.0", port=8000, reload=True)
+    uvicorn.run("app.main:app", host="0.0.0.0", port=int(os.getenv("PORT", 8000)))
