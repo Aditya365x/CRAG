@@ -21,6 +21,14 @@ class Settings(BaseSettings):
     upper_th: float = 0.7
     lower_th: float = 0.3
 
+    # Shown in the UI; tailor these to the bundled documents.
+    example_questions: list[str] = [
+        "What is the bias-variance trade-off?",
+        "How does the EM algorithm work for Gaussian mixtures?",
+        "What is a support vector machine?",
+        "Explain error backpropagation in neural networks",
+    ]
+
     # Bundled documents live in crag-app/documents; fall back to the
     # notebook repo's ../documents for local development.
     documents_dir: str = (

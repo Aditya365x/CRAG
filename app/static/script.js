@@ -135,15 +135,97 @@
     }
   }
 
+  /* ── Knowledge base ── */
+  function el(tag, className, text) {
+    const node = document.createElement(tag);
+    if (className) node.className = className;
+    if (text !== undefined) node.textContent = text;
+    return node;
+  }
+
+  function renderDocs(docs) {
+    const wrap = document.getElementById("kbDocs");
+    wrap.innerHTML = "";
+    if (!docs.length) {
+      const card = el("div", "card kb-doc");
+      card.appendChild(el("span", "mono-label muted", "No documents indexed — every answer uses web search."));
+      wrap.appendChild(card);
+      return;
+    }
+    docs.forEach((d, i) => {
+      const card = el("article", "card kb-doc");
+      card.appendChild(el("span", "mono-label muted", `Source ${String(i + 1).padStart(2, "0")} · ${d.file}`));
+      card.appendChild(el("h3", "", d.title));
+      if (d.author) card.appendChild(el("div", "author", d.author));
+
+      const meta = el("div", "kb-meta");
+      meta.appendChild(el("span", "tag", `${d.pages} pages`));
+      meta.appendChild(el("span", "tag tag-mint", `${d.chunks.toLocaleString()} chunks`));
+      if (d.chapters.length) meta.appendChild(el("span", "tag tag-peri", `${d.chapters.length} chapters`));
+      card.appendChild(meta);
+
+      if (d.chapters.length) {
+        card.appendChild(el("span", "mono-label muted kb-chapters-label", "Topics covered"));
+        const list = el("ol", "kb-chapters");
+        d.chapters.forEach((c) => list.appendChild(el("li", "", c)));
+        card.appendChild(list);
+      }
+      wrap.appendChild(card);
+    });
+  }
+
+  function renderSpec(e) {
+    document.getElementById("kbVectors").textContent = `${e.vectors.toLocaleString()} vectors`;
+    const rows = [
+      ["Model", e.model],
+      ["Dimensions", e.dimensions],
+      ["Vectors", e.vectors.toLocaleString()],
+      ["Chunk size", `${e.chunk_size} chars`],
+      ["Overlap", `${e.chunk_overlap} chars`],
+      ["Retrieved", `top ${e.top_k} per query`],
+      ["Store", e.vector_store],
+    ];
+    const body = document.getElementById("kbSpec");
+    body.innerHTML = "";
+    rows.forEach(([k, v]) => {
+      const tr = el("tr");
+      tr.appendChild(el("td", "", k));
+      tr.appendChild(el("td", "", String(v)));
+      body.appendChild(tr);
+    });
+  }
+
+  function renderChips(questions) {
+    const chips = document.getElementById("chips");
+    chips.innerHTML = "";
+    questions.forEach((q) => {
+      const chip = el("button", "chip", q);
+      chip.type = "button";
+      chip.addEventListener("click", () => {
+        input.value = q;
+        ask();
+      });
+      chips.appendChild(chip);
+    });
+  }
+
+  async function loadKnowledgeBase() {
+    try {
+      const res = await fetch("/documents");
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const kb = await res.json();
+      renderDocs(kb.documents);
+      renderSpec(kb.embeddings);
+      renderChips(kb.example_questions);
+    } catch (err) {
+      document.getElementById("kbDocs").innerHTML =
+        '<div class="card kb-doc"><span class="mono-label muted">Could not load the knowledge base.</span></div>';
+    }
+  }
+
   /* ── Events ── */
   form.addEventListener("submit", ask);
-
-  document.querySelectorAll(".chip").forEach((chip) =>
-    chip.addEventListener("click", () => {
-      input.value = chip.textContent;
-      ask();
-    })
-  );
+  loadKnowledgeBase();
 
   metaClose.addEventListener("click", () => {
     const trace = document.querySelector(".trace");

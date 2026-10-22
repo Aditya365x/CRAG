@@ -108,6 +108,8 @@ docker run -p 7860:7860 -e OPENROUTER_API_KEY=... -e TAVILY_API_KEY=... crag-app
 
 ### API
 
+`GET /documents` describes the knowledge base: indexed documents (title, author, pages, chunks, chapters), the embedding setup (model, dimensions, chunk size/overlap, top-k), and suggested questions. The UI's *Knowledge base* section is built from it.
+
 ```http
 POST /ask
 Content-Type: application/json

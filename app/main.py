@@ -6,7 +6,7 @@ from fastapi.templating import Jinja2Templates
 
 from app.schemas import AskRequest, AskResponse
 from app.pipeline import build_graph
-from app.document_store import get_vector_store
+from app.document_store import get_knowledge_base
 app = FastAPI(title="CRAG — Corrective RAG")
 
 # Serve static assets & templates
@@ -21,8 +21,14 @@ _graph = None
 @app.on_event("startup")
 def startup():
     global _graph
-    get_vector_store()
+    get_knowledge_base()  # loads the vector store too
     _graph = build_graph()
+
+
+@app.get("/documents")
+def documents():
+    """What the app knows: indexed documents and how they were embedded."""
+    return get_knowledge_base()
 
 
 @app.get("/health")

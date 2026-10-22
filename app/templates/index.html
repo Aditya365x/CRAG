@@ -15,6 +15,7 @@
     <div class="container nav-inner">
       <a class="logo" href="/">crag<span class="logo-dot">.</span></a>
       <div class="nav-links">
+        <a href="#knowledge">Knowledge base</a>
         <a href="#workspace">Workspace</a>
         <a href="#pipeline">Pipeline</a>
         <a href="/docs">API</a>
@@ -36,7 +37,7 @@
         </p>
         <div class="hero-ctas">
           <a class="btn btn-mint" href="#workspace">Ask a question</a>
-          <a class="btn btn-white" href="#pipeline">See the pipeline</a>
+          <a class="btn btn-white" href="#knowledge">What it knows</a>
         </div>
       </div>
       <div class="hero-art" aria-hidden="true">
@@ -64,11 +65,48 @@
     </div>
   </header>
 
+  <!-- ── Knowledge base ── -->
+  <section id="knowledge" class="knowledge">
+    <div class="container">
+      <div class="section-head">
+        <span class="eyebrow eyebrow-light">01 · Knowledge base</span>
+        <h2>What this assistant has read</h2>
+        <p class="section-lead">
+          Answers are grounded in the documents below, split into chunks and
+          embedded into a vector index. Questions outside them fall back to
+          live web search.
+        </p>
+      </div>
+
+      <div class="kb-grid">
+        <div class="kb-docs" id="kbDocs">
+          <div class="card kb-doc kb-loading"><span class="mono-label muted">Loading documents…</span></div>
+        </div>
+
+        <aside class="card kb-spec">
+          <div class="card-head">
+            <span class="mono-label">Embedding index</span>
+            <span class="mono-label muted" id="kbVectors">—</span>
+          </div>
+          <table class="table">
+            <tbody id="kbSpec">
+              <tr><td colspan="2" class="muted">—</td></tr>
+            </tbody>
+          </table>
+          <p class="kb-note">
+            Your question is embedded with the same model, and the closest
+            chunks are retrieved, graded and refined before answering.
+          </p>
+        </aside>
+      </div>
+    </div>
+  </section>
+
   <!-- ── Workspace ── -->
   <main id="workspace" class="workspace">
     <div class="container">
       <div class="section-head">
-        <span class="eyebrow eyebrow-light">01 · Workspace</span>
+        <span class="eyebrow eyebrow-light">02 · Workspace</span>
         <h2>Query the document store</h2>
       </div>
 
@@ -84,14 +122,10 @@
             <div class="message bot welcome">
               <span class="mono-label muted">System</span>
               <div class="bubble">
-                Ask me anything about the books in the document store. If the
-                documents can't answer, I'll go to the web.
+                Ask me anything about the documents in the knowledge base. If
+                they can't answer, I'll go to the web. Try one of these:
               </div>
-              <div class="chips">
-                <button class="chip" type="button">What is gradient descent?</button>
-                <button class="chip" type="button">Explain overfitting and how to prevent it</button>
-                <button class="chip" type="button">What is a convolutional neural network?</button>
-              </div>
+              <div class="chips" id="chips"></div>
             </div>
           </div>
 
@@ -169,7 +203,7 @@
   <!-- ── Footer ── -->
   <footer class="footer">
     <div class="container footer-row">
-      <span class="mono-label muted">LangGraph · FAISS · MiniLM-L6 · Tavily</span>
+      <span class="mono-label muted">LangGraph · FAISS · MiniLM-L6 · Tavily · <a href="/documents">/documents</a></span>
       <span class="mono-label muted">Corrective RAG</span>
     </div>
     <div class="wordmark" aria-hidden="true">crag.</div>

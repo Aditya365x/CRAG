@@ -1,4 +1,6 @@
 import os
+import re
+from pypdf import PdfReader
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import FAISS
@@ -7,6 +9,7 @@ from app.embeddings import get_embeddings
 
 _vector_store = None
 _chunks = []
+_knowledge_base = None
 
 
 def load_and_chunk_documents():
@@ -77,6 +80,56 @@ def get_vector_store():
     _vector_store.save_local(settings.index_dir)
     print(f"Saved FAISS index to {settings.index_dir}")
     return _vector_store
+
+
+def _chapters(path):
+    """Top-level numbered chapters from the PDF outline, e.g. '5. Neural Networks'."""
+    try:
+        reader = PdfReader(path)
+        titles = [o.title for o in reader.outline if not isinstance(o, list)]
+    except Exception:
+        return []
+    titles = [re.sub(r"\s+", " ", t).strip() for t in titles]
+    return [t for t in titles if re.match(r"^\d+\.", t)]
+
+
+def get_knowledge_base():
+    """Describe the indexed documents and how their embeddings were built."""
+    global _knowledge_base
+    if _knowledge_base is not None:
+        return _knowledge_base
+
+    vs = get_vector_store()
+    docs = {}
+    if vs is not None:
+        for d in vs.docstore._dict.values():
+            name = re.split(r"[\\/]", d.metadata.get("source", "unknown"))[-1]
+            info = docs.setdefault(name, {
+                "file": name,
+                "title": d.metadata.get("title") or name,
+                "author": d.metadata.get("author") or "",
+                "pages": d.metadata.get("total_pages") or 0,
+                "chunks": 0,
+            })
+            info["chunks"] += 1
+
+    for info in docs.values():
+        info["chapters"] = _chapters(os.path.join(settings.documents_dir, info["file"]))
+
+    _knowledge_base = {
+        "documents": sorted(docs.values(), key=lambda x: x["file"]),
+        "embeddings": {
+            "model": settings.embed_model,
+            "dimensions": vs.index.d if vs is not None else 0,
+            "vectors": vs.index.ntotal if vs is not None else 0,
+            "chunk_size": settings.chunk_size,
+            "chunk_overlap": settings.chunk_overlap,
+            "top_k": settings.k_retrieval,
+            "vector_store": "FAISS (flat L2)",
+        },
+        "example_questions": settings.example_questions,
+    }
+    return _knowledge_base
 
 
 def get_retriever():
