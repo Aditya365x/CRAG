@@ -1,24 +1,27 @@
-# Vercel container image: Vercel routes traffic to port 80 (or $PORT).
-FROM python:3.12-slim
+# Vercel container image: traffic goes to port 80. Instances are stateless and scale to zero,
+# so uploads live in /tmp only for the instance's lifetime; the demo index is copied there at start.
+FROM python:3.11-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
-    HF_HOME=/app/.cache/huggingface \
+    FASTEMBED_CACHE=/app/models \
+    DATA_DIR=/tmp/crag_data \
     PORT=80
 
 WORKDIR /app
 
-# CPU-only torch keeps the image ~2GB smaller than the default CUDA build.
-RUN pip install --index-url https://download.pytorch.org/whl/cpu torch
 COPY requirements.txt .
 RUN pip install -r requirements.txt
 
-COPY app ./app
-COPY documents ./documents
+# Download MiniLM (ONNX, ~90 MB) at build time so the app never downloads it at runtime.
+RUN python -c "from fastembed import TextEmbedding; TextEmbedding('sentence-transformers/all-MiniLM-L6-v2', cache_dir='/app/models')"
 
-# Download the embedding model and prebuild the FAISS index at build time.
-RUN python -m app.build_index
+COPY documents ./documents
+COPY app ./app
+
+# Prebuild the demo book's index so the app works with zero uploads.
+RUN DATA_DIR=/app/data python -m app.seed_demo
 
 EXPOSE 80
-CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT}"]
+CMD ["sh", "-c", "mkdir -p /tmp/crag_data && cp -rn /app/data/. /tmp/crag_data/ && uvicorn app.api:app --host 0.0.0.0 --port ${PORT}"]

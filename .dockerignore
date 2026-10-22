@@ -4,3 +4,6 @@
 faiss_index
 venv
 .venv
+data
+models
+.venv

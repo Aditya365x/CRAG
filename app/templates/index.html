@@ -17,10 +17,9 @@
       <div class="nav-links">
         <a href="#knowledge">Knowledge base</a>
         <a href="#workspace">Workspace</a>
-        <a href="#pipeline">Pipeline</a>
         <a href="/docs">API</a>
       </div>
-      <span class="badge-dark mono-label">LLAMA-3.2-1B · OPENROUTER</span>
+      <span class="badge-dark mono-label" id="modelBadge">—</span>
     </div>
   </nav>
 
@@ -29,15 +28,16 @@
     <div class="container hero-inner">
       <div class="hero-copy">
         <span class="eyebrow">Corrective retrieval-augmented generation</span>
-        <h1>Answers that check their own sources.</h1>
+        <h1>Ask any PDF. Get answers that check their sources.</h1>
         <p class="lead">
-          Every query is retrieved, graded chunk by chunk, routed to web search
-          when the documents fall short, then refined sentence by sentence
-          before a single token of the answer is generated.
+          Upload a PDF and ask a question. Every retrieved passage is graded;
+          when your document falls short, the app searches the web, then
+          answers with page and web citations so you can see exactly where
+          each claim came from.
         </p>
         <div class="hero-ctas">
-          <a class="btn btn-mint" href="#workspace">Ask a question</a>
-          <a class="btn btn-white" href="#knowledge">What it knows</a>
+          <a class="btn btn-mint" href="#knowledge">Upload a PDF</a>
+          <a class="btn btn-white" href="#workspace">Try the demo book</a>
         </div>
       </div>
       <div class="hero-art" aria-hidden="true">
@@ -58,7 +58,7 @@
             <line x1="270" y1="20" x2="270" y2="400" />
             <line x1="0" y1="90" x2="520" y2="90" />
             <text x="278" y="34">x=270</text>
-            <text x="8" y="84">y=90 · TOP-K=4</text>
+            <text x="8" y="84">y=90 · BM25 + MINILM</text>
           </g>
         </svg>
       </div>
@@ -70,23 +70,43 @@
     <div class="container">
       <div class="section-head">
         <span class="eyebrow eyebrow-light">01 · Knowledge base</span>
-        <h2>What this assistant has read</h2>
+        <h2>Your documents and how they're indexed</h2>
         <p class="section-lead">
-          Answers are grounded in the documents below, split into chunks and
-          embedded into a vector index. Questions outside them fall back to
-          live web search.
+          Each PDF is split into page-tagged chunks and embedded into its own
+          index. Pick a document to ask about, or upload your own.
         </p>
       </div>
 
       <div class="kb-grid">
-        <div class="kb-docs" id="kbDocs">
-          <div class="card kb-doc kb-loading"><span class="mono-label muted">Loading documents…</span></div>
+        <div class="kb-left">
+          <!-- Upload -->
+          <form class="card upload" id="uploadForm">
+            <div class="card-head">
+              <span class="mono-label">Upload a PDF</span>
+              <span class="mono-label muted" id="uploadLimits">—</span>
+            </div>
+            <label class="dropzone" id="dropzone">
+              <input type="file" id="fileInput" accept="application/pdf,.pdf" />
+              <span class="dz-title" id="dzTitle">Drop a PDF here or click to choose</span>
+              <span class="mono-label muted">Text PDFs only · scanned PDFs need OCR first</span>
+            </label>
+            <div class="upload-foot">
+              <div class="progress" id="uploadProgress" hidden><span id="uploadBar"></span></div>
+              <span class="upload-msg" id="uploadMsg"></span>
+              <button class="btn btn-primary" id="uploadBtn" type="submit" disabled>Index PDF</button>
+            </div>
+          </form>
+
+          <!-- Documents -->
+          <div class="kb-docs" id="kbDocs">
+            <div class="card kb-doc"><span class="mono-label muted">Loading documents…</span></div>
+          </div>
         </div>
 
         <aside class="card kb-spec">
           <div class="card-head">
             <span class="mono-label">Embedding index</span>
-            <span class="mono-label muted" id="kbVectors">—</span>
+            <span class="mono-label muted">per document</span>
           </div>
           <table class="table">
             <tbody id="kbSpec">
@@ -94,8 +114,9 @@
             </tbody>
           </table>
           <p class="kb-note">
-            Your question is embedded with the same model, and the closest
-            chunks are retrieved, graded and refined before answering.
+            Your question is matched two ways (exact keywords with BM25, meaning
+            with MiniLM vectors), the rankings are fused, and the top chunks are
+            graded by the LLM before anything is answered.
           </p>
         </aside>
       </div>
@@ -107,14 +128,14 @@
     <div class="container">
       <div class="section-head">
         <span class="eyebrow eyebrow-light">02 · Workspace</span>
-        <h2>Query the document store</h2>
+        <h2>Ask your document</h2>
       </div>
 
       <div class="grid">
         <!-- Console -->
         <section class="card console">
           <div class="card-head">
-            <span class="mono-label">Console</span>
+            <span class="mono-label active-doc" id="activeDoc">No document selected</span>
             <span class="mono-label muted" id="status">Ready</span>
           </div>
 
@@ -122,8 +143,9 @@
             <div class="message bot welcome">
               <span class="mono-label muted">System</span>
               <div class="bubble">
-                Ask me anything about the documents in the knowledge base. If
-                they can't answer, I'll go to the web. Try one of these:
+                Answers cite their sources: <span class="cite">p.12</span> is a
+                page in your PDF, <span class="cite cite-web">web 1</span> is a
+                web result.
               </div>
               <div class="chips" id="chips"></div>
             </div>
@@ -135,7 +157,6 @@
               id="questionInput"
               placeholder="Ask a question…"
               autocomplete="off"
-              autofocus
             />
             <button class="btn btn-primary" id="sendBtn" type="submit">Ask</button>
           </form>
@@ -151,47 +172,59 @@
 
             <ol class="stages" id="stages">
               <li data-stage="retrieve"><span class="idx">01</span>Retrieve</li>
-              <li data-stage="evaluate"><span class="idx">02</span>Evaluate</li>
-              <li data-stage="web"><span class="idx">03</span>Web search</li>
-              <li data-stage="refine"><span class="idx">04</span>Refine</li>
-              <li data-stage="generate"><span class="idx">05</span>Generate</li>
+              <li data-stage="grade"><span class="idx">02</span>Grade</li>
+              <li data-stage="rewrite"><span class="idx">03</span>Rewrite</li>
+              <li data-stage="web"><span class="idx">04</span>Web</li>
+              <li data-stage="refine"><span class="idx">05</span>Refine</li>
+              <li data-stage="generate"><span class="idx">06</span>Answer</li>
             </ol>
 
             <div class="meta-body" id="metaBody">
-              <div class="stats">
+              <div class="verdict-row">
+                <span class="verdict" id="metaVerdict">—</span>
+                <span class="verdict-text" id="metaVerdictText">Ask a question to see how it was answered.</span>
+              </div>
+
+              <div class="split">
+                <div class="split-labels">
+                  <span class="mono-label" id="splitBookLabel">PDF —</span>
+                  <span class="mono-label" id="splitWebLabel">Web —</span>
+                </div>
+                <div class="split-bar"><span class="split-book" id="splitBook"></span><span class="split-web" id="splitWeb"></span></div>
+              </div>
+
+              <div class="stats stats-3">
                 <div class="stat stat-mint">
-                  <span class="stat-num" id="metaGoodDocs">—</span>
-                  <span class="mono-label">Good docs</span>
+                  <span class="stat-num" id="metaBest">—</span>
+                  <span class="mono-label">Best chunk</span>
                 </div>
                 <div class="stat stat-peri">
-                  <span class="stat-num" id="metaWebDocs">—</span>
-                  <span class="mono-label">Web docs</span>
+                  <span class="stat-num" id="metaCalls">—</span>
+                  <span class="mono-label">LLM calls</span>
+                </div>
+                <div class="stat stat-plain">
+                  <span class="stat-num" id="metaLatency">—</span>
+                  <span class="mono-label" id="metaLatencyLabel">Seconds</span>
                 </div>
               </div>
 
-              <table class="table">
+              <table class="table chunks">
                 <thead>
-                  <tr><th>Field</th><th>Value</th></tr>
+                  <tr><th>#</th><th>Page</th><th>Score</th><th>Used</th></tr>
                 </thead>
-                <tbody>
-                  <tr>
-                    <td>Verdict</td>
-                    <td><span class="verdict" id="metaVerdict">—</span></td>
-                  </tr>
-                  <tr>
-                    <td>Reason</td>
-                    <td class="meta-reason" id="metaReason">—</td>
-                  </tr>
-                  <tr>
-                    <td>Latency</td>
-                    <td id="metaLatency">—</td>
-                  </tr>
+                <tbody id="metaChunks">
+                  <tr><td colspan="4" class="muted">—</td></tr>
                 </tbody>
               </table>
 
+              <div class="sources" id="metaSources">
+                <span class="mono-label muted">Sources</span>
+                <p class="muted">—</p>
+              </div>
+
               <div class="code">
-                <span class="mono-label">Refined context</span>
-                <pre id="metaContext">—</pre>
+                <span class="mono-label">This document so far</span>
+                <div class="doc-report" id="metaReport">—</div>
               </div>
             </div>
           </section>
@@ -203,7 +236,7 @@
   <!-- ── Footer ── -->
   <footer class="footer">
     <div class="container footer-row">
-      <span class="mono-label muted">LangGraph · FAISS · MiniLM-L6 · Tavily · <a href="/documents">/documents</a></span>
+      <span class="mono-label muted">LangGraph · FAISS · BM25 · MiniLM-L6 · Tavily · <a href="/docs">REST API</a></span>
       <span class="mono-label muted">Corrective RAG</span>
     </div>
     <div class="wordmark" aria-hidden="true">crag.</div>
