@@ -2,245 +2,237 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#08090b" />
   <title>CRAG — Corrective RAG</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="/static/style.css" />
 </head>
 <body>
-  <!-- ── Nav ── -->
-  <nav class="nav">
-    <div class="container nav-inner">
-      <a class="logo" href="/">crag<span class="logo-dot">.</span></a>
-      <div class="nav-links">
-        <a href="#knowledge">Knowledge base</a>
-        <a href="#workspace">Workspace</a>
-        <a href="/docs">API</a>
-      </div>
-      <span class="badge-dark mono-label" id="modelBadge">—</span>
-    </div>
-  </nav>
+  <!-- Icon set (Lucide paths, 1.75 stroke) -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <defs>
+      <linearGradient id="brand" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0%" stop-color="#fc4c02" />
+        <stop offset="50%" stop-color="#ef2cc1" />
+        <stop offset="100%" stop-color="#bdbbff" />
+      </linearGradient>
+    </defs>
+    <symbol id="i-mark" viewBox="0 0 32 32"><path d="M3 26 12.5 7.5l5 9.2 3.4-5.4L29 26Z" fill="url(#brand)" /><path d="M12.5 7.5 15 12.2l-2.4 1.6-2.2-2.3Z" fill="#fff" opacity=".85" /></symbol>
+    <symbol id="i-ask" viewBox="0 0 24 24"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z" /><path d="M9.1 9a3 3 0 0 1 5.82 1c0 2-3 3-3 3" /><path d="M12 17h.01" /></symbol>
+    <symbol id="i-docs" viewBox="0 0 24 24"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z" /><path d="M14 2v4a2 2 0 0 0 2 2h4" /><path d="M16 13H8" /><path d="M16 17H8" /><path d="M10 9H8" /></symbol>
+    <symbol id="i-trace" viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2" /></symbol>
+    <symbol id="i-code" viewBox="0 0 24 24"><path d="m16 18 6-6-6-6" /><path d="m8 6-6 6 6 6" /></symbol>
+    <symbol id="i-upload" viewBox="0 0 24 24"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z" /><path d="M14 2v4a2 2 0 0 0 2 2h4" /><path d="M12 12v6" /><path d="m15 15-3-3-3 3" /></symbol>
+    <symbol id="i-book" viewBox="0 0 24 24"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" /><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" /></symbol>
+    <symbol id="i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" /><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20" /><path d="M2 12h20" /></symbol>
+    <symbol id="i-zap" viewBox="0 0 24 24"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z" /></symbol>
+    <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" /></symbol>
+    <symbol id="i-copy" viewBox="0 0 24 24"><rect width="14" height="14" x="8" y="8" rx="2" /><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" /></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5" /></symbol>
+    <symbol id="i-pin" viewBox="0 0 24 24"><path d="M12 17v5" /><path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z" /></symbol>
+    <symbol id="i-layers" viewBox="0 0 24 24"><path d="M12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z" /><path d="m22 17.65-9.17 4.16a2 2 0 0 1-1.66 0L2 17.65" /><path d="m22 12.65-9.17 4.16a2 2 0 0 1-1.66 0L2 12.65" /></symbol>
+    <symbol id="i-arrow" viewBox="0 0 24 24"><path d="m5 12 7-7 7 7" /><path d="M12 19V5" /></symbol>
+  </svg>
 
-  <!-- ── Hero ── -->
-  <header class="hero">
-    <div class="container hero-inner">
-      <div class="hero-copy">
-        <span class="eyebrow">Corrective retrieval-augmented generation</span>
-        <h1>Ask any PDF. Get answers that check their sources.</h1>
-        <p class="lead">
-          Upload a PDF and ask a question. Every retrieved passage is graded;
-          when your document falls short, the app searches the web, then
-          answers with page and web citations so you can see exactly where
-          each claim came from.
-        </p>
-        <div class="hero-ctas">
-          <a class="btn btn-mint" href="#knowledge">Upload a PDF</a>
-          <a class="btn btn-white" href="#workspace">Try the demo book</a>
+  <div class="app" id="app" data-view="ask">
+    <!-- ── Left rail ── -->
+    <header class="rail">
+      <div class="rail-inner">
+        <a class="brand" href="/" aria-label="CRAG home">
+          <svg class="brand-mark"><use href="#i-mark" /></svg>
+          <span class="brand-word">crag</span>
+        </a>
+
+        <nav class="nav" aria-label="Main">
+          <button class="nav-item" type="button" data-go="ask" aria-current="page">
+            <svg class="ico"><use href="#i-ask" /></svg><span>Ask</span>
+          </button>
+          <button class="nav-item" type="button" data-go="docs">
+            <svg class="ico"><use href="#i-docs" /></svg><span>Documents</span>
+          </button>
+          <button class="nav-item nav-trace" type="button" data-go="trace">
+            <svg class="ico"><use href="#i-trace" /></svg><span>Trace</span>
+          </button>
+          <a class="nav-item" href="/docs">
+            <svg class="ico"><use href="#i-code" /></svg><span>API</span>
+          </a>
+        </nav>
+
+        <button class="btn btn-primary btn-xl rail-cta" type="button" id="railUpload">
+          <svg class="ico"><use href="#i-upload" /></svg><span>Upload PDF</span>
+        </button>
+
+        <div class="model-card">
+          <span class="avatar avatar-sm avatar-mark"><svg><use href="#i-mark" /></svg></span>
+          <span class="model-text">
+            <span class="model-name" id="modelName">Connecting…</span>
+            <span class="model-sub" id="modelBadge">—</span>
+          </span>
         </div>
       </div>
-      <div class="hero-art" aria-hidden="true">
-        <svg viewBox="0 0 520 420" class="ribbon">
-          <defs>
-            <linearGradient id="brand" x1="0" y1="0" x2="1" y2="1">
-              <stop offset="0%" stop-color="#fc4c02" />
-              <stop offset="50%" stop-color="#ef2cc1" />
-              <stop offset="100%" stop-color="#bdbbff" />
-            </linearGradient>
-          </defs>
-          <g fill="none" stroke="url(#brand)" stroke-linecap="round">
-            <path d="M20 330 C140 330 150 90 270 90 S400 300 500 120" stroke-width="54" opacity=".95" />
-            <path d="M20 330 C140 330 150 90 270 90 S400 300 500 120" stroke-width="54" opacity=".35" transform="translate(0 46)" />
-            <path d="M20 330 C140 330 150 90 270 90 S400 300 500 120" stroke-width="54" opacity=".15" transform="translate(0 92)" />
-          </g>
-          <g class="blueprint-marks" font-family="JetBrains Mono, monospace" font-size="10">
-            <line x1="270" y1="20" x2="270" y2="400" />
-            <line x1="0" y1="90" x2="520" y2="90" />
-            <text x="278" y="34">x=270</text>
-            <text x="8" y="84">y=90 · BM25 + MINILM</text>
-          </g>
-        </svg>
-      </div>
-    </div>
-  </header>
+    </header>
 
-  <!-- ── Knowledge base ── -->
-  <section id="knowledge" class="knowledge">
-    <div class="container">
-      <div class="section-head">
-        <span class="eyebrow eyebrow-light">01 · Knowledge base</span>
-        <h2>Your documents and how they're indexed</h2>
-        <p class="section-lead">
-          Each PDF is split into page-tagged chunks and embedded into its own
-          index. Pick a document to ask about, or upload your own.
-        </p>
+    <!-- ── Center column ── -->
+    <main class="feed">
+      <div class="feed-head">
+        <div class="feed-title">
+          <a class="brand brand-compact" href="/" aria-label="CRAG home">
+            <svg class="brand-mark"><use href="#i-mark" /></svg>
+          </a>
+          <h1 id="viewTitle">Ask your document</h1>
+        </div>
+        <div class="tabs" role="tablist">
+          <button class="tab" type="button" role="tab" data-go="ask">Ask</button>
+          <button class="tab" type="button" role="tab" data-go="docs">Documents</button>
+          <button class="tab tab-trace" type="button" role="tab" data-go="trace">Trace</button>
+        </div>
       </div>
 
-      <div class="kb-grid">
-        <div class="kb-left">
-          <!-- Upload -->
-          <form class="card upload" id="uploadForm">
-            <div class="card-head">
-              <span class="mono-label">Upload a PDF</span>
-              <span class="mono-label muted" id="uploadLimits">—</span>
+      <!-- Ask -->
+      <section class="view view-ask" aria-label="Ask">
+        <form class="composer" id="askForm">
+          <span class="avatar avatar-you" aria-hidden="true">You</span>
+          <div class="composer-main">
+            <label class="sr-only" for="questionInput">Your question</label>
+            <textarea id="questionInput" rows="2" placeholder="What does your PDF say about…?" autocomplete="off"></textarea>
+            <div class="composer-doc">
+              <svg class="ico ico-sm"><use href="#i-book" /></svg>
+              <span id="activeDoc">No document selected</span>
             </div>
+            <div class="composer-bar">
+              <span class="status" id="status">Ready</span>
+              <button class="btn btn-primary" id="sendBtn" type="submit">Ask</button>
+            </div>
+          </div>
+        </form>
+
+        <div class="suggest" id="suggest" hidden>
+          <span class="suggest-label">Try asking</span>
+          <div class="chips" id="chips"></div>
+        </div>
+
+        <div class="timeline" id="chat"></div>
+
+        <article class="post post-pinned">
+          <span class="avatar avatar-mark"><svg><use href="#i-mark" /></svg></span>
+          <div class="post-body">
+            <div class="pinned-line"><svg class="ico ico-xs"><use href="#i-pin" /></svg>Pinned</div>
+            <div class="post-head"><span class="post-name">CRAG</span><span class="post-handle">How answers work</span></div>
+            <div class="post-text">
+              Every passage I retrieve gets graded before I answer. If your PDF falls short, I search the web.
+              Each sentence cites its source: <span class="cite">p.12</span> is a page in your PDF and
+              <span class="cite cite-web">web 1</span> is a web result.
+            </div>
+          </div>
+        </article>
+      </section>
+
+      <!-- Documents -->
+      <section class="view view-docs" aria-label="Documents">
+        <form class="composer upload" id="uploadForm">
+          <span class="avatar avatar-you" aria-hidden="true">You</span>
+          <div class="composer-main">
             <label class="dropzone" id="dropzone">
               <input type="file" id="fileInput" accept="application/pdf,.pdf" />
+              <svg class="ico dz-ico"><use href="#i-upload" /></svg>
               <span class="dz-title" id="dzTitle">Drop a PDF here or click to choose</span>
-              <span class="mono-label muted">Text PDFs only · scanned PDFs need OCR first</span>
+              <span class="dz-sub">Text PDFs only. Scanned PDFs need OCR first.</span>
             </label>
-            <div class="upload-foot">
-              <div class="progress" id="uploadProgress" hidden><span id="uploadBar"></span></div>
-              <span class="upload-msg" id="uploadMsg"></span>
+            <div class="progress" id="uploadProgress" hidden><span id="uploadBar"></span></div>
+            <div class="composer-bar">
+              <span class="status"><span id="uploadMsg"></span><span id="uploadLimits">—</span></span>
               <button class="btn btn-primary" id="uploadBtn" type="submit" disabled>Index PDF</button>
             </div>
-          </form>
-
-          <!-- Documents -->
-          <div class="kb-docs" id="kbDocs">
-            <div class="card kb-doc"><span class="mono-label muted">Loading documents…</span></div>
           </div>
+        </form>
+
+        <div class="doc-list" id="kbDocs">
+          <div class="empty">Loading documents…</div>
         </div>
+      </section>
+    </main>
 
-        <aside class="card kb-spec">
-          <div class="card-head">
-            <span class="mono-label">Embedding index</span>
-            <span class="mono-label muted">per document</span>
+    <!-- ── Right column: trace + index ── -->
+    <aside class="side" id="metadata" aria-label="Pipeline trace">
+      <div class="side-inner">
+        <section class="panel" id="pipeline">
+          <h2 class="panel-title">Pipeline trace</h2>
+
+          <ol class="stages" id="stages">
+            <li data-stage="retrieve">Retrieve</li>
+            <li data-stage="grade">Grade</li>
+            <li data-stage="rewrite">Rewrite</li>
+            <li data-stage="web">Web</li>
+            <li data-stage="refine">Refine</li>
+            <li data-stage="generate">Answer</li>
+          </ol>
+
+          <div class="panel-row verdict-row">
+            <span class="verdict" id="metaVerdict">—</span>
+            <span class="verdict-text" id="metaVerdictText">Ask a question to see how it was answered.</span>
           </div>
-          <table class="table">
-            <tbody id="kbSpec">
-              <tr><td colspan="2" class="muted">—</td></tr>
-            </tbody>
-          </table>
-          <p class="kb-note">
+
+          <div class="panel-row split">
+            <div class="split-labels">
+              <span id="splitBookLabel">PDF —</span>
+              <span id="splitWebLabel">Web —</span>
+            </div>
+            <div class="split-bar"><span class="split-book" id="splitBook"></span><span class="split-web" id="splitWeb"></span></div>
+          </div>
+
+          <div class="panel-row stats">
+            <div class="stat"><span class="stat-num" id="metaBest">—</span><span class="stat-label">Best chunk</span></div>
+            <div class="stat"><span class="stat-num" id="metaCalls">—</span><span class="stat-label">LLM calls</span></div>
+            <div class="stat"><span class="stat-num" id="metaLatency">—</span><span class="stat-label" id="metaLatencyLabel">Seconds</span></div>
+          </div>
+
+          <div class="panel-row">
+            <table class="table chunks">
+              <thead><tr><th>#</th><th>Page</th><th>Score</th><th>Used</th></tr></thead>
+              <tbody id="metaChunks"><tr><td colspan="4" class="muted">No chunks graded yet.</td></tr></tbody>
+            </table>
+          </div>
+
+          <div class="panel-row sources" id="metaSources">
+            <span class="row-label">Sources</span>
+            <p class="muted">—</p>
+          </div>
+
+          <div class="panel-row">
+            <span class="row-label">This document so far</span>
+            <div class="doc-report" id="metaReport">—</div>
+          </div>
+        </section>
+
+        <section class="panel">
+          <h2 class="panel-title">Index settings</h2>
+          <table class="table spec"><tbody id="kbSpec"><tr><td colspan="2" class="muted">—</td></tr></tbody></table>
+          <p class="panel-note">
             Your question is matched two ways (exact keywords with BM25, meaning
             with MiniLM vectors), the rankings are fused, and the top chunks are
             graded by the LLM before anything is answered.
           </p>
-        </aside>
-      </div>
-    </div>
-  </section>
-
-  <!-- ── Workspace ── -->
-  <main id="workspace" class="workspace">
-    <div class="container">
-      <div class="section-head">
-        <span class="eyebrow eyebrow-light">02 · Workspace</span>
-        <h2>Ask your document</h2>
-      </div>
-
-      <div class="grid">
-        <!-- Console -->
-        <section class="card console">
-          <div class="card-head">
-            <span class="mono-label active-doc" id="activeDoc">No document selected</span>
-            <span class="mono-label muted" id="status">Ready</span>
-          </div>
-
-          <div class="chat" id="chat">
-            <div class="message bot welcome">
-              <span class="mono-label muted">System</span>
-              <div class="bubble">
-                Answers cite their sources: <span class="cite">p.12</span> is a
-                page in your PDF, <span class="cite cite-web">web 1</span> is a
-                web result.
-              </div>
-              <div class="chips" id="chips"></div>
-            </div>
-          </div>
-
-          <form class="input-bar" id="askForm">
-            <input
-              type="text"
-              id="questionInput"
-              placeholder="Ask a question…"
-              autocomplete="off"
-            />
-            <button class="btn btn-primary" id="sendBtn" type="submit">Ask</button>
-          </form>
         </section>
 
-        <!-- Pipeline trace -->
-        <aside class="trace" id="metadata">
-          <section class="card" id="pipeline">
-            <div class="card-head">
-              <span class="mono-label">Pipeline trace</span>
-              <button class="btn-outline mono-label" id="metaClose" type="button">Collapse</button>
-            </div>
-
-            <ol class="stages" id="stages">
-              <li data-stage="retrieve"><span class="idx">01</span>Retrieve</li>
-              <li data-stage="grade"><span class="idx">02</span>Grade</li>
-              <li data-stage="rewrite"><span class="idx">03</span>Rewrite</li>
-              <li data-stage="web"><span class="idx">04</span>Web</li>
-              <li data-stage="refine"><span class="idx">05</span>Refine</li>
-              <li data-stage="generate"><span class="idx">06</span>Answer</li>
-            </ol>
-
-            <div class="meta-body" id="metaBody">
-              <div class="verdict-row">
-                <span class="verdict" id="metaVerdict">—</span>
-                <span class="verdict-text" id="metaVerdictText">Ask a question to see how it was answered.</span>
-              </div>
-
-              <div class="split">
-                <div class="split-labels">
-                  <span class="mono-label" id="splitBookLabel">PDF —</span>
-                  <span class="mono-label" id="splitWebLabel">Web —</span>
-                </div>
-                <div class="split-bar"><span class="split-book" id="splitBook"></span><span class="split-web" id="splitWeb"></span></div>
-              </div>
-
-              <div class="stats stats-3">
-                <div class="stat stat-mint">
-                  <span class="stat-num" id="metaBest">—</span>
-                  <span class="mono-label">Best chunk</span>
-                </div>
-                <div class="stat stat-peri">
-                  <span class="stat-num" id="metaCalls">—</span>
-                  <span class="mono-label">LLM calls</span>
-                </div>
-                <div class="stat stat-plain">
-                  <span class="stat-num" id="metaLatency">—</span>
-                  <span class="mono-label" id="metaLatencyLabel">Seconds</span>
-                </div>
-              </div>
-
-              <table class="table chunks">
-                <thead>
-                  <tr><th>#</th><th>Page</th><th>Score</th><th>Used</th></tr>
-                </thead>
-                <tbody id="metaChunks">
-                  <tr><td colspan="4" class="muted">—</td></tr>
-                </tbody>
-              </table>
-
-              <div class="sources" id="metaSources">
-                <span class="mono-label muted">Sources</span>
-                <p class="muted">—</p>
-              </div>
-
-              <div class="code">
-                <span class="mono-label">This document so far</span>
-                <div class="doc-report" id="metaReport">—</div>
-              </div>
-            </div>
-          </section>
-        </aside>
+        <footer class="side-foot">
+          <a href="/docs">REST API</a>
+          <a href="https://github.com/Aditya365x/CRAG" target="_blank" rel="noopener noreferrer">Source</a>
+          <span>LangGraph · FAISS · BM25 · MiniLM · Tavily</span>
+        </footer>
       </div>
-    </div>
-  </main>
+    </aside>
 
-  <!-- ── Footer ── -->
-  <footer class="footer">
-    <div class="container footer-row">
-      <span class="mono-label muted">LangGraph · FAISS · BM25 · MiniLM-L6 · Tavily · <a href="/docs">REST API</a></span>
-      <span class="mono-label muted">Corrective RAG</span>
-    </div>
-    <div class="wordmark" aria-hidden="true">crag.</div>
-  </footer>
+    <!-- ── Phone tab bar ── -->
+    <nav class="tabbar" aria-label="Sections">
+      <button type="button" data-go="ask" aria-label="Ask"><svg class="ico"><use href="#i-ask" /></svg></button>
+      <button type="button" data-go="docs" aria-label="Documents"><svg class="ico"><use href="#i-docs" /></svg></button>
+      <button type="button" data-go="trace" aria-label="Trace"><svg class="ico"><use href="#i-trace" /></svg></button>
+      <a href="/docs" aria-label="API"><svg class="ico"><use href="#i-code" /></svg></a>
+    </nav>
+  </div>
 
   <script src="/static/script.js"></script>
 </body>
