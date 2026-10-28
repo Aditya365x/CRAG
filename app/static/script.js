@@ -1,6 +1,7 @@
 (() => {
   const $ = (id) => document.getElementById(id);
 
+  const app = $("app");
   const chat = $("chat");
   const input = $("questionInput");
   const sendBtn = $("sendBtn");
@@ -20,8 +21,22 @@
     return node;
   }
 
+  function icon(name, extra) {
+    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    svg.setAttribute("class", `ico${extra ? ` ${extra}` : ""}`);
+    svg.setAttribute("aria-hidden", "true");
+    const use = document.createElementNS("http://www.w3.org/2000/svg", "use");
+    use.setAttribute("href", `#i-${name}`);
+    svg.appendChild(use);
+    return svg;
+  }
+
   function escapeHtml(s) {
     return s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  }
+
+  function timeNow() {
+    return new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
   }
 
   // Turn [p.12], [web 2] and grouped [p.3, web 1] citations into tags (text is escaped first).
@@ -46,26 +61,110 @@
     return res.json();
   }
 
-  /* ── Console messages ── */
-  function addMessage(content, role, label, html) {
-    const div = el("div", `message ${role}`);
-    div.appendChild(el("span", "mono-label muted", label));
-    const bubble = el("div", "bubble");
-    if (html) bubble.innerHTML = content;
-    else bubble.textContent = content;
-    div.appendChild(bubble);
-    chat.appendChild(div);
-    chat.scrollTop = chat.scrollHeight;
-    return div;
+  /* ── Views (Ask · Documents · Trace) ── */
+  const TITLES = { ask: "Ask your document", docs: "Documents", trace: "Pipeline trace" };
+
+  function setView(view) {
+    // The Trace tab only exists on narrow screens; wide screens show the side panel instead.
+    if (view === "trace" && window.matchMedia("(min-width: 1080px)").matches) view = "ask";
+    app.dataset.view = view;
+    $("viewTitle").textContent = TITLES[view];
+    document.querySelectorAll("[data-go]").forEach((b) => {
+      const on = b.dataset.go === view;
+      if (b.getAttribute("role") === "tab") b.setAttribute("aria-selected", String(on));
+      else if (on) b.setAttribute("aria-current", "page");
+      else b.removeAttribute("aria-current");
+    });
   }
 
-  let loadingEl = null;
-  function showLoading() {
-    loadingEl = addMessage("Retrieving, grading, refining ", "bot loading", "CRAG");
+  document.querySelectorAll("[data-go]").forEach((b) => {
+    b.addEventListener("click", () => {
+      setView(b.dataset.go);
+      window.scrollTo({ top: 0 });
+    });
+  });
+
+  $("railUpload").addEventListener("click", () => {
+    setView("docs");
+    $("fileInput").click();
+  });
+
+  /* ── Posts ── */
+  function post({ role, label, html, content, extraClass }) {
+    const art = el("article", `post post-${role}${extraClass ? ` ${extraClass}` : ""}`);
+    let avatar;
+    if (role === "question") {
+      avatar = el("span", "avatar avatar-you", "You");
+    } else {
+      avatar = el("span", "avatar avatar-mark");
+      avatar.innerHTML = '<svg><use href="#i-mark" /></svg>';
+    }
+    avatar.setAttribute("aria-hidden", "true");
+    art.appendChild(avatar);
+
+    const body = el("div", "post-body");
+    const head = el("div", "post-head");
+    head.appendChild(el("span", "post-name", role === "question" ? "You" : "CRAG"));
+    head.appendChild(el("span", "post-handle", label));
+    head.appendChild(el("span", "post-time", timeNow()));
+    body.appendChild(head);
+
+    const text = el("div", "post-text");
+    if (html) text.innerHTML = html;
+    else if (content !== undefined) text.textContent = content;
+    body.appendChild(text);
+    art.appendChild(body);
+    return art;
   }
-  function hideLoading() {
-    if (loadingEl) loadingEl.remove();
-    loadingEl = null;
+
+  function addError(message) {
+    chat.prepend(post({ role: "answer", label: "Error", content: message, extraClass: "post-error" }));
+  }
+
+  function loadingPost() {
+    const art = post({ role: "answer", label: "Working" });
+    const box = el("div", "thinking");
+    for (let i = 0; i < 3; i += 1) box.appendChild(el("span", "thinking-line"));
+    const step = el("span", "thinking-step", "Retrieving passages…");
+    box.appendChild(step);
+    art.querySelector(".post-text").replaceWith(box);
+    const steps = ["Retrieving passages…", "Grading each chunk…", "Filtering sentences…", "Writing the answer…"];
+    let i = 0;
+    art._timer = setInterval(() => { i = Math.min(i + 1, steps.length - 1); step.textContent = steps[i]; }, 2200);
+    return art;
+  }
+
+  function metric(name, text, title) {
+    const m = el("span", "metric");
+    m.appendChild(icon(name));
+    m.appendChild(el("span", "", text));
+    if (title) m.title = title;
+    return m;
+  }
+
+  function answerFoot(r) {
+    const foot = el("div", "post-foot");
+    const v = el("span", `verdict verdict-${r.verdict.toLowerCase()}`, r.verdict);
+    v.title = VERDICT_TEXT[r.verdict] || "";
+    foot.appendChild(v);
+    foot.appendChild(metric("book", String(r.book_pages_used.length), "PDF pages cited"));
+    foot.appendChild(metric("globe", String(r.web_sources.length), "Web sources used"));
+    foot.appendChild(metric("zap", r.cached ? "0" : String(r.llm_calls), "LLM calls"));
+    foot.appendChild(metric("clock", r.cached ? "cached" : `${r.latency_s.toFixed(1)} s`, "Latency"));
+
+    const copy = el("button", "icon-btn");
+    copy.type = "button";
+    copy.setAttribute("aria-label", "Copy answer");
+    copy.appendChild(icon("copy"));
+    copy.addEventListener("click", async () => {
+      try {
+        await navigator.clipboard.writeText(r.answer);
+        copy.replaceChildren(icon("check"));
+        setTimeout(() => copy.replaceChildren(icon("copy")), 1600);
+      } catch (_) { /* clipboard unavailable */ }
+    });
+    foot.appendChild(copy);
+    return foot;
   }
 
   /* ── Pipeline stage diagram ── */
@@ -84,7 +183,7 @@
   function reportBar(r) {
     const wrap = el("div", "report");
     if (!r || !r.questions) {
-      wrap.appendChild(el("span", "muted", "No questions asked yet."));
+      wrap.appendChild(el("span", "report-text", "No questions asked yet."));
       return wrap;
     }
     const bar = el("div", "report-bar");
@@ -129,47 +228,57 @@
     const wrap = $("kbDocs");
     wrap.innerHTML = "";
     if (!docs.length) {
-      const card = el("div", "card kb-doc");
-      card.appendChild(el("span", "mono-label muted", "No documents yet. Upload a PDF to get started."));
-      wrap.appendChild(card);
+      wrap.appendChild(el("div", "empty", "No documents yet. Upload a PDF to get started."));
       return;
     }
     docs.forEach((d) => {
       const ready = d.status === "ready";
-      const card = el("article", `card kb-doc${d.doc_id === activeId ? " active" : ""}${ready ? " selectable" : ""}`);
-      const head = el("div", "kb-doc-head");
-      head.appendChild(el("span", "mono-label muted",
-        `${d.doc_id === cfg.demo_doc_id ? "Demo" : "Upload"} · ${d.name}`));
-      head.appendChild(el("span", `tag status-${d.status}`, d.status));
-      card.appendChild(head);
-      card.appendChild(el("h3", "", d.title || d.name));
-      if (d.author) card.appendChild(el("div", "author", d.author));
+      const card = el("article", `doc-card${d.doc_id === activeId ? " active" : ""}${ready ? " selectable" : ""}`);
+      const ic = el("span", "doc-icon");
+      ic.appendChild(icon("docs"));
+      card.appendChild(ic);
+
+      const body = el("div", "doc-body");
+      const top = el("div", "doc-top");
+      top.appendChild(el("span", "doc-title", d.title || d.name));
+      top.appendChild(el("span", `doc-state state-${d.status}`, d.status));
+      body.appendChild(top);
+      body.appendChild(el("span", "doc-sub",
+        `${d.doc_id === cfg.demo_doc_id ? "Demo" : "Upload"} · ${d.author ? `${d.author} · ` : ""}${d.name}`));
 
       if (ready) {
-        const meta = el("div", "kb-meta");
-        const pages = d.total_pages && d.total_pages > d.pages ? `${d.pages} of ${d.total_pages} pages` : `${d.pages} pages`;
-        meta.appendChild(el("span", "tag", pages));
-        meta.appendChild(el("span", "tag tag-mint", `${(d.chunks || 0).toLocaleString()} chunks`));
-        if (d.index_seconds !== undefined) meta.appendChild(el("span", "tag", `indexed in ${d.index_seconds} s`));
-        card.appendChild(meta);
-        card.appendChild(reportBar(d.report));
+        const meta = el("div", "doc-meta");
+        const pages = d.total_pages && d.total_pages > d.pages ? `${d.pages} of ${d.total_pages}` : `${d.pages}`;
+        const add = (b, t) => { const s = el("span"); s.appendChild(el("b", "", b)); s.append(` ${t}`); meta.appendChild(s); };
+        add(pages, "pages");
+        add((d.chunks || 0).toLocaleString(), "chunks");
+        if (d.index_seconds !== undefined) add(`${d.index_seconds} s`, "to index");
+        body.appendChild(meta);
+        body.appendChild(reportBar(d.report));
 
         if (d.doc_id === activeId && d.chapters && d.chapters.length) {
-          card.appendChild(el("span", "mono-label muted kb-chapters-label", "Topics covered"));
-          const list = el("ol", "kb-chapters");
+          body.appendChild(el("span", "chapters-label", "Topics covered"));
+          const list = el("ul", "chapters");
           d.chapters.forEach((c) => list.appendChild(el("li", "", c)));
-          card.appendChild(list);
+          body.appendChild(list);
         }
+        card.tabIndex = 0;
+        card.setAttribute("role", "button");
+        card.setAttribute("aria-pressed", String(d.doc_id === activeId));
         card.addEventListener("click", () => selectDoc(d.doc_id));
+        card.addEventListener("keydown", (e) => {
+          if (e.key === "Enter" || e.key === " ") { e.preventDefault(); selectDoc(d.doc_id); }
+        });
       } else if (d.status === "error") {
-        card.appendChild(el("p", "kb-error", d.error || "Indexing failed."));
+        body.appendChild(el("p", "doc-error", d.error || "Indexing failed."));
       } else {
         const bar = el("div", "progress");
         const fill = el("span");
         fill.style.width = `${Math.round((d.progress || 0) * 100)}%`;
         bar.appendChild(fill);
-        card.appendChild(bar);
+        body.appendChild(bar);
       }
+      card.appendChild(body);
       wrap.appendChild(card);
     });
   }
@@ -178,7 +287,7 @@
     activeId = docId;
     try { localStorage.setItem("crag.activeDoc", docId); } catch (_) { /* storage unavailable */ }
     const d = docs.find((x) => x.doc_id === docId);
-    $("activeDoc").textContent = d ? `Asking: ${d.title || d.name}` : "No document selected";
+    $("activeDoc").textContent = d ? (d.title || d.name) : "No document selected";
     renderDocs();
     renderChips(d);
     $("metaReport").replaceChildren(reportBar(d && d.report));
@@ -188,6 +297,7 @@
     const chips = $("chips");
     chips.innerHTML = "";
     const qs = d && d.doc_id === cfg.demo_doc_id ? cfg.demo_questions : [];
+    $("suggest").hidden = !qs.length;
     qs.forEach((q) => {
       const chip = el("button", "chip", q);
       chip.type = "button";
@@ -323,7 +433,7 @@
 
     const src = $("metaSources");
     src.innerHTML = "";
-    src.appendChild(el("span", "mono-label muted", `Sources · ${r.sentences_kept}/${r.sentences_in} sentences kept`));
+    src.appendChild(el("span", "row-label", `Sources · ${r.sentences_kept}/${r.sentences_in} sentences kept`));
     if (r.book_pages_used.length) {
       const pages = el("div", "page-tags");
       r.book_pages_used.forEach((p) => pages.appendChild(el("span", "cite", `p.${p}`)));
@@ -350,23 +460,39 @@
   }
 
   /* ── Ask ── */
+  function autosize() {
+    input.style.height = "auto";
+    input.style.height = `${Math.min(input.scrollHeight, 240)}px`;
+  }
+  input.addEventListener("input", autosize);
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && !e.shiftKey && !e.isComposing) { e.preventDefault(); ask(); }
+  });
+
   async function ask(e) {
     if (e) e.preventDefault();
     const q = input.value.trim();
     if (!q) return;
+    setView("ask");
     if (!activeId) {
-      addMessage("Upload a PDF or pick one in the knowledge base first.", "bot error", "Error");
+      addError("Upload a PDF or pick one under Documents first.");
       return;
     }
 
     input.value = "";
+    autosize();
     sendBtn.disabled = true;
-    statusEl.textContent = "Running";
+    statusEl.textContent = "Running the pipeline…";
+    statusEl.classList.add("is-running");
     queryCount += 1;
     const n = String(queryCount).padStart(2, "0");
 
-    addMessage(q, "user", `Query ${n}`);
-    showLoading();
+    // Newest exchange goes to the top, question threaded above its answer.
+    const group = el("div", "exchange");
+    group.appendChild(post({ role: "question", label: `Question ${n}`, content: q, extraClass: "threaded" }));
+    const loading = loadingPost();
+    group.appendChild(loading);
+    chat.prepend(group);
     setStages("running");
 
     try {
@@ -375,18 +501,22 @@
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ doc_id: activeId, question: q }),
       });
-      hideLoading();
-      addMessage(renderAnswer(r.answer), "bot", `Answer ${n}${r.cached ? " · cached" : ""}`, true);
+      clearInterval(loading._timer);
+      const ans = post({ role: "answer", label: `Answer ${n}${r.cached ? " · cached" : ""}`, html: renderAnswer(r.answer) });
+      ans.querySelector(".post-body").appendChild(answerFoot(r));
+      loading.replaceWith(ans);
       showTrace(r);
       const d = docs.find((x) => x.doc_id === activeId);
       if (d) { d.report = r.book_report; renderDocs(); }
       statusEl.textContent = "Ready";
     } catch (err) {
-      hideLoading();
+      clearInterval(loading._timer);
+      const errPost = post({ role: "answer", label: "Error", content: `Error: ${err.message}`, extraClass: "post-error" });
+      loading.replaceWith(errPost);
       setStages(null);
-      addMessage(`Error: ${err.message}`, "bot error", "Error");
-      statusEl.textContent = "Error";
+      statusEl.textContent = "Something went wrong";
     } finally {
+      statusEl.classList.remove("is-running");
       sendBtn.disabled = false;
       input.focus();
     }
@@ -394,26 +524,20 @@
 
   /* ── Events & boot ── */
   $("askForm").addEventListener("submit", ask);
-
-  $("metaClose").addEventListener("click", () => {
-    const trace = document.querySelector(".trace");
-    trace.classList.toggle("collapsed");
-    $("metaClose").textContent = trace.classList.contains("collapsed") ? "Expand" : "Collapse";
-  });
+  setView("ask");
 
   (async () => {
     try {
       cfg = await api("/api/config");
-      const short = cfg.llm.split("/").pop().replace("-instruct", "").toUpperCase();
-      $("modelBadge").textContent = `${short} · ${cfg.web_search ? "WEB ON" : "WEB OFF"}`;
+      const short = cfg.llm.split("/").pop().replace("-instruct", "");
+      $("modelName").textContent = short;
+      $("modelBadge").textContent = cfg.web_search ? "web search on" : "web search off";
       $("uploadLimits").textContent = `Max ${cfg.max_upload_mb} MB · first ${cfg.max_pages} pages`;
       renderSpec();
       await refreshDocs();
     } catch (err) {
-      $("kbDocs").innerHTML = "";
-      const card = el("div", "card kb-doc");
-      card.appendChild(el("span", "mono-label muted", `Could not reach the server: ${err.message}`));
-      $("kbDocs").appendChild(card);
+      $("modelName").textContent = "Offline";
+      $("kbDocs").replaceChildren(el("div", "empty", `Could not reach the server: ${err.message}`));
     }
   })();
 })();
